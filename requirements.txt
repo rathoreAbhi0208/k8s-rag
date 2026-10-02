@@ -1,0 +1,7 @@
+ollama 
+python-frontmatter
+pytest
+pyyaml
+pymilvus
+pymilvus[milvus_lite]
+pytest-cov
