@@ -246,3 +246,42 @@ def test_count(repository):
         output_fields=["id"],
         limit=10000,
     )
+
+# def test_get_all_chunks(repository, mock_client):
+#     mock_client.query.return_value = [
+#         {
+#             "id": 1,
+#             "content": "Kubernetes control plane",
+#             "source": "components.md",
+#             "filename": "components.md",
+#             "heading": "Control Plane Components",
+#             "chunk_index": 0,
+#         },
+#         {
+#             "id": 2,
+#             "content": "Kubernetes worker nodes",
+#             "source": "components.md",
+#             "filename": "components.md",
+#             "heading": "Node Components",
+#             "chunk_index": 1,
+#         },
+#     ]
+
+#     result = repository.get_all_chunks()
+
+#     assert len(result) == 2
+#     assert result[0]["heading"] == "Control Plane Components"
+
+#     mock_client.query.assert_called_once_with(
+#         collection_name=repository.collection_name,
+#         filter="",
+#         output_fields=[
+#             "id",
+#             "content",
+#             "source",
+#             "filename",
+#             "heading",
+#             "chunk_index",
+#         ],
+#         limit=10000,
+#     )

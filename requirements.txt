@@ -5,3 +5,5 @@ pyyaml
 pymilvus
 pymilvus[milvus_lite]
 pytest-cov
+rank-bm25
+sentence-transformers

@@ -102,3 +102,19 @@ class MilvusRepository:
         )
 
         return len(result)
+
+    def get_all_chunks(self) -> list[dict[str, Any]]:
+        """Return all stored document chunks for lexical retrieval."""
+        return self.client.query(
+            collection_name=self.collection_name,
+            filter="",
+            output_fields=[
+                "id",
+                "content",
+                "source",
+                "filename",
+                "heading",
+                "chunk_index",
+            ],
+            limit=10000,
+        )
