@@ -77,35 +77,35 @@ class SemanticSearcher:
                 }
             )
 
-        # ---------------------------------------------------------
-        # Debug output
-        # ---------------------------------------------------------
+        # # ---------------------------------------------------------
+        # # Debug output
+        # # ---------------------------------------------------------
 
-        print("\n" + "=" * 80)
-        print("SEMANTIC SEARCH RESULTS")
-        print("=" * 80)
+        # print("\n" + "=" * 80)
+        # print("SEMANTIC SEARCH RESULTS")
+        # print("=" * 80)
 
-        print(f"Query: {query}")
-        print(f"Top K: {top_k}")
+        # print(f"Query: {query}")
+        # print(f"Top K: {top_k}")
 
-        for index, match in enumerate(matches, start=1):
-            print(
-                f"\n{index}. "
-                f"distance={match['distance']:.4f}"
-            )
-            print(
-                f"   Heading:      {match['heading']}"
-            )
-            print(
-                f"   Heading Path: {match['heading_path']}"
-            )
-            print(
-                f"   Source:       {match['source']}"
-            )
-            print(
-                f"   Chunk Index:  {match['chunk_index']}"
-            )
+        # for index, match in enumerate(matches, start=1):
+        #     print(
+        #         f"\n{index}. "
+        #         f"distance={match['distance']:.4f}"
+        #     )
+        #     print(
+        #         f"   Heading:      {match['heading']}"
+        #     )
+        #     print(
+        #         f"   Heading Path: {match['heading_path']}"
+        #     )
+        #     print(
+        #         f"   Source:       {match['source']}"
+        #     )
+        #     print(
+        #         f"   Chunk Index:  {match['chunk_index']}"
+        #     )
 
-        print("=" * 80)
+        # print("=" * 80)
 
         return matches
