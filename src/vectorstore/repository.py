@@ -81,6 +81,8 @@ class MilvusRepository:
                     ),
                     "chunk_index": chunk_index,
                     "embedding": embedding,
+                    "heading_level": metadata.get("heading_level", 0),
+                    "heading_path": metadata.get("heading_path", ""),
                 }
             )
 

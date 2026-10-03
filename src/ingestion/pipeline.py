@@ -48,9 +48,12 @@ class IngestionPipeline:
 
         # Generate embeddings
         texts = [
-        f"Heading: {chunk.metadata.get('heading', '')}\n\n"
-        f"{chunk.content}"
-        for chunk in chunks
+            (
+                f"Document: {chunk.metadata.get('title', '')}\n"
+                f"Section: {chunk.metadata.get('heading_path', '')}\n\n"
+                f"{chunk.content}"
+            )
+            for chunk in chunks
         ]
 
         embeddings = self.embedder.embed_batch(

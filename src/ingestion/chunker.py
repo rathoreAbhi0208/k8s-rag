@@ -24,7 +24,6 @@ class MarkdownChunker:
         sections = self._split_by_headings(content)
 
         chunks = []
-
         global_chunk_index = 0
 
         for section in sections:
@@ -38,6 +37,8 @@ class MarkdownChunker:
                 chunk_metadata.update(
                     {
                         "heading": section["heading"],
+                        "heading_level": section["heading_level"],
+                        "heading_path": section["heading_path"],
                         "chunk_index": global_chunk_index,
                     }
                 )
@@ -53,52 +54,101 @@ class MarkdownChunker:
 
         return chunks
 
-    def _split_by_headings(self, content: str) -> list[dict[str, str]]:
+    def _split_by_headings(
+        self,
+        content: str,
+    ) -> list[dict[str, Any]]:
+
         lines = content.splitlines()
 
         sections = []
-        current_heading = "root"
+
         current_content = []
 
-        for line in lines:
+        heading_stack: list[tuple[int, str]] = []
 
-            if re.match(r"^#{1,6}\s+", line):
-                section_content = "\n".join(current_content).strip()
+        current_heading = "root"
+        current_heading_level = 0
+        current_heading_path = "root"
+
+        for line in lines:
+            match = re.match(
+                r"^(#{1,6})\s+(.+)$",
+                line,
+            )
+
+            if match:
+                section_content = "\n".join(
+                    current_content
+                ).strip()
 
                 if section_content:
                     sections.append(
                         {
                             "heading": current_heading,
+                            "heading_level": current_heading_level,
+                            "heading_path": current_heading_path,
                             "content": section_content,
                         }
                     )
 
-                current_heading = line.strip("# ").strip()
+                heading_level = len(match.group(1))
+                heading = match.group(2).strip()
+
+                while (
+                    heading_stack
+                    and heading_stack[-1][0] >= heading_level
+                ):
+                    heading_stack.pop()
+
+                heading_stack.append(
+                    (heading_level, heading)
+                )
+
+                current_heading = heading
+                current_heading_level = heading_level
+
+                current_heading_path = " > ".join(
+                    item[1]
+                    for item in heading_stack
+                )
+
                 current_content = []
 
             else:
                 current_content.append(line)
 
-        section_content = "\n".join(current_content).strip()
+        section_content = "\n".join(
+            current_content
+        ).strip()
 
         if section_content:
             sections.append(
                 {
                     "heading": current_heading,
+                    "heading_level": current_heading_level,
+                    "heading_path": current_heading_path,
                     "content": section_content,
                 }
             )
 
         return sections
 
-    def _split_large_section(self, content: str) -> list[str]:
+    def _split_large_section(
+        self,
+        content: str,
+    ) -> list[str]:
 
         if len(content) <= self.max_chars:
             return [content]
 
         chunks = []
 
-        for i in range(0, len(content), self.max_chars):
+        for i in range(
+            0,
+            len(content),
+            self.max_chars,
+        ):
             chunks.append(
                 content[i : i + self.max_chars]
             )

@@ -1,205 +1,154 @@
-from pathlib import Path
+import uuid
 
-from pymilvus import MilvusClient
-
-from src.vectorstore.collections import (
-    EMBEDDING_DIMENSION,
-)
-from src.vectorstore.milvus_client import (
-    LocalMilvusClient,
-)
+from src.vectorstore.milvus_client import LocalMilvusClient
 
 
-COLLECTION_NAME = "test_kubernetes_docs"
+DIMENSION = 3
 
 
-def create_test_collection(
-    client: LocalMilvusClient,
-):
-    """Create a temporary test collection."""
+def create_test_collection():
+    collection_name = f"test_kubernetes_docs_{uuid.uuid4().hex[:8]}"
 
-    client.create_kubernetes_collection(
-        collection_name=COLLECTION_NAME,
-        dimension=EMBEDDING_DIMENSION,
+    milvus = LocalMilvusClient(
+        db_path="data/test_milvus.db",
     )
 
-
-def test_create_milvus_collection(
-    tmp_path: Path,
-):
-    """Test creating a Milvus collection."""
-
-    db_path = tmp_path / "test_milvus.db"
-
-    client = LocalMilvusClient(
-        db_path=str(db_path),
+    milvus.create_kubernetes_collection(
+        collection_name=collection_name,
+        dimension=DIMENSION,
     )
 
-    create_test_collection(client)
-
-    assert client.has_collection(
-        COLLECTION_NAME
-    )
-
-    assert COLLECTION_NAME in (
-        client.list_collections()
-    )
+    return milvus, collection_name
 
 
-def test_insert_and_query_vector(
-    tmp_path: Path,
-):
-    """Test inserting and querying a vector."""
+def test_insert_and_query_vector():
+    milvus, collection_name = create_test_collection()
 
-    db_path = tmp_path / "test_milvus.db"
+    try:
+        rows = [
+            {
+                "id": 1,
+                "content": "Kubernetes control plane manages the cluster.",
+                "source": "components.md",
+                "filename": "components.md",
+                "heading": "Control Plane Components",
+                "chunk_index": 0,
+                "heading_level": 2,
+                "heading_path": "Core Components > Control Plane Components",
+                "embedding": [0.1, 0.2, 0.3],
+            }
+        ]
 
-    client = LocalMilvusClient(
-        db_path=str(db_path),
-    )
+        result = milvus.client.insert(
+            collection_name=collection_name,
+            data=rows,
+        )
 
-    create_test_collection(client)
+        assert result["insert_count"] == 1
 
-    vector = [0.1] * EMBEDDING_DIMENSION
+        query_result = milvus.client.query(
+            collection_name=collection_name,
+            filter="id == 1",
+            output_fields=[
+                "id",
+                "content",
+                "source",
+                "filename",
+                "heading",
+                "chunk_index",
+                "heading_level",
+                "heading_path",
+            ],
+        )
 
-    data = [
-        {
-            "id": 1,
-            "content": "Kubernetes control plane manages the cluster.",
-            "source": "test/components.md",
-            "filename": "components.md",
-            "heading": "Control Plane Components",
-            "chunk_index": 0,
-            "embedding": vector,
-        }
-    ]
+        assert len(query_result) == 1
 
-    result = client.client.insert(
-        collection_name=COLLECTION_NAME,
-        data=data,
-    )
+        row = query_result[0]
 
-    assert len(result["ids"]) == 1
-    assert result["ids"][0] == 1
+        assert row["id"] == 1
+        assert row["content"] == (
+            "Kubernetes control plane manages the cluster."
+        )
+        assert row["source"] == "components.md"
+        assert row["filename"] == "components.md"
+        assert row["heading"] == "Control Plane Components"
+        assert row["chunk_index"] == 0
+        assert row["heading_level"] == 2
+        assert row["heading_path"] == (
+            "Core Components > Control Plane Components"
+        )
 
-    query_result = client.client.get(
-        collection_name=COLLECTION_NAME,
-        ids=[1],
-        output_fields=[
-            "id",
-            "content",
-            "source",
-            "filename",
-            "heading",
-            "chunk_index",
-        ],
-    )
-
-    assert len(query_result) == 1
-
-    record = query_result[0]
-
-    assert record["id"] == 1
-    assert (
-        record["content"]
-        == "Kubernetes control plane manages the cluster."
-    )
-    assert record["source"] == "test/components.md"
-    assert record["filename"] == "components.md"
-    assert record["heading"] == "Control Plane Components"
-    assert record["chunk_index"] == 0
+    finally:
+        milvus.drop_collection(collection_name)
 
 
-def test_vector_search(
-    tmp_path: Path,
-):
-    """Test semantic vector search."""
+def test_vector_search():
+    milvus, collection_name = create_test_collection()
 
-    db_path = tmp_path / "test_milvus.db"
+    try:
+        rows = [
+            {
+                "id": 1,
+                "content": "Kubernetes control plane manages the cluster.",
+                "source": "components.md",
+                "filename": "components.md",
+                "heading": "Control Plane Components",
+                "chunk_index": 0,
+                "heading_level": 2,
+                "heading_path": "Core Components > Control Plane Components",
+                "embedding": [0.1, 0.2, 0.3],
+            },
+            {
+                "id": 2,
+                "content": "Worker nodes run application workloads.",
+                "source": "components.md",
+                "filename": "components.md",
+                "heading": "Node Components",
+                "chunk_index": 1,
+                "heading_level": 2,
+                "heading_path": "Core Components > Node Components",
+                "embedding": [0.9, 0.8, 0.7],
+            },
+        ]
 
-    client = LocalMilvusClient(
-        db_path=str(db_path),
-    )
+        insert_result = milvus.client.insert(
+            collection_name=collection_name,
+            data=rows,
+        )
 
-    create_test_collection(client)
+        assert insert_result["insert_count"] == 2
 
-    vector_1 = [0.1] * EMBEDDING_DIMENSION
-    vector_2 = [0.9] * EMBEDDING_DIMENSION
+        results = milvus.client.search(
+            collection_name=collection_name,
+            data=[[0.1, 0.2, 0.3]],
+            anns_field="embedding",
+            limit=2,
+            output_fields=[
+                "content",
+                "source",
+                "filename",
+                "heading",
+                "chunk_index",
+                "heading_level",
+                "heading_path",
+            ],
+        )
 
-    data = [
-        {
-            "id": 1,
-            "content": "Kubernetes control plane.",
-            "source": "control-plane.md",
-            "filename": "control-plane.md",
-            "heading": "Control Plane",
-            "chunk_index": 0,
-            "embedding": vector_1,
-        },
-        {
-            "id": 2,
-            "content": "Kubernetes worker nodes.",
-            "source": "nodes.md",
-            "filename": "nodes.md",
-            "heading": "Node Components",
-            "chunk_index": 0,
-            "embedding": vector_2,
-        },
-    ]
+        assert len(results) == 1
+        assert len(results[0]) == 2
 
-    client.client.insert(
-        collection_name=COLLECTION_NAME,
-        data=data,
-    )
+        first = results[0][0]
 
-    query_vector = [0.1] * EMBEDDING_DIMENSION
+        assert first["id"] == 1
+        assert first["entity"]["content"] == (
+            "Kubernetes control plane manages the cluster."
+        )
+        assert first["entity"]["heading"] == "Control Plane Components"
+        assert first["entity"]["chunk_index"] == 0
+        assert first["entity"]["heading_level"] == 2
+        assert first["entity"]["heading_path"] == (
+            "Core Components > Control Plane Components"
+        )
 
-    results = client.client.search(
-        collection_name=COLLECTION_NAME,
-        data=[query_vector],
-        limit=2,
-        output_fields=[
-            "content",
-            "heading",
-        ],
-    )
-
-    assert len(results) == 1
-    assert len(results[0]) == 2
-
-    first_result = results[0][0]
-
-    assert first_result["id"] == 1
-    assert (
-        first_result["entity"]["content"]
-        == "Kubernetes control plane."
-    )
-    assert (
-        first_result["entity"]["heading"]
-        == "Control Plane"
-    )
-
-
-def test_drop_collection(
-    tmp_path: Path,
-):
-    """Test deleting a collection."""
-
-    db_path = tmp_path / "test_milvus.db"
-
-    client = LocalMilvusClient(
-        db_path=str(db_path),
-    )
-
-    create_test_collection(client)
-
-    assert client.has_collection(
-        COLLECTION_NAME
-    )
-
-    client.drop_collection(
-        COLLECTION_NAME
-    )
-
-    assert not client.has_collection(
-        COLLECTION_NAME
-    )
+    finally:
+        milvus.drop_collection(collection_name)

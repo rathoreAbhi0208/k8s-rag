@@ -10,7 +10,6 @@ def test_search_returns_results():
     embedder = Mock()
 
     embedder.embed.return_value = [0.1, 0.2, 0.3]
-
     repository.collection_name = "kubernetes_docs"
 
     repository.client.search.return_value = [
@@ -24,6 +23,8 @@ def test_search_returns_results():
                     "filename": "components.md",
                     "heading": "Control Plane Components",
                     "chunk_index": 2,
+                    "heading_level": 2,
+                    "heading_path": "Core Components > Control Plane Components",
                 },
             }
         ]
@@ -42,8 +43,17 @@ def test_search_returns_results():
     assert len(results) == 1
     assert results[0]["id"] == 123
     assert results[0]["distance"] == 0.95
+    assert results[0]["content"] == (
+        "The Kubernetes control plane manages the cluster."
+    )
+    assert results[0]["source"] == "components.md"
+    assert results[0]["filename"] == "components.md"
     assert results[0]["heading"] == "Control Plane Components"
     assert results[0]["chunk_index"] == 2
+    assert results[0]["heading_level"] == 2
+    assert results[0]["heading_path"] == (
+        "Core Components > Control Plane Components"
+    )
 
     embedder.embed.assert_called_once_with(
         "What manages the Kubernetes cluster?"
@@ -60,6 +70,8 @@ def test_search_returns_results():
             "filename",
             "heading",
             "chunk_index",
+            "heading_level",
+            "heading_path",
         ],
     )
 
@@ -87,7 +99,10 @@ def test_invalid_top_k_raises_error():
     )
 
     with pytest.raises(ValueError, match="top_k must be greater than 0"):
-        searcher.search("What is Kubernetes?", top_k=0)
+        searcher.search(
+            "What is Kubernetes?",
+            top_k=0,
+        )
 
 
 def test_multiple_results_are_returned():
@@ -95,7 +110,6 @@ def test_multiple_results_are_returned():
     embedder = Mock()
 
     embedder.embed.return_value = [0.1, 0.2]
-
     repository.collection_name = "kubernetes_docs"
 
     repository.client.search.return_value = [
@@ -104,11 +118,15 @@ def test_multiple_results_are_returned():
                 "id": 1,
                 "distance": 0.98,
                 "entity": {
-                    "content": "Kubernetes is a container orchestration platform.",
+                    "content": (
+                        "Kubernetes is a container orchestration platform."
+                    ),
                     "source": "intro.md",
                     "filename": "intro.md",
                     "heading": "Introduction",
                     "chunk_index": 0,
+                    "heading_level": 1,
+                    "heading_path": "Introduction",
                 },
             },
             {
@@ -120,6 +138,8 @@ def test_multiple_results_are_returned():
                     "filename": "components.md",
                     "heading": "Control Plane",
                     "chunk_index": 1,
+                    "heading_level": 2,
+                    "heading_path": "Core Components > Control Plane",
                 },
             },
         ]
@@ -136,5 +156,33 @@ def test_multiple_results_are_returned():
     )
 
     assert len(results) == 2
+
     assert results[0]["id"] == 1
+    assert results[0]["heading"] == "Introduction"
+    assert results[0]["chunk_index"] == 0
+    assert results[0]["heading_level"] == 1
+    assert results[0]["heading_path"] == "Introduction"
+
     assert results[1]["id"] == 2
+    assert results[1]["heading"] == "Control Plane"
+    assert results[1]["chunk_index"] == 1
+    assert results[1]["heading_level"] == 2
+    assert results[1]["heading_path"] == (
+        "Core Components > Control Plane"
+    )
+
+    repository.client.search.assert_called_once_with(
+        collection_name="kubernetes_docs",
+        data=[[0.1, 0.2]],
+        anns_field="embedding",
+        limit=2,
+        output_fields=[
+            "content",
+            "source",
+            "filename",
+            "heading",
+            "chunk_index",
+            "heading_level",
+            "heading_path",
+        ],
+    )

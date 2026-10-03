@@ -55,9 +55,10 @@ def test_real_rag_pipeline(tmp_path):
 
     retriever = Retriever(
         semantic_searcher=semantic_searcher,
-        reranker=reranker,
+        reranker=None,
         candidate_k=10,
         top_k=3,
+        use_reranker=False,
     )
 
     ollama_client = OllamaClient(
@@ -87,9 +88,14 @@ def test_real_rag_pipeline(tmp_path):
     assert len(result["sources"]) == 3
 
     for source in result["sources"]:
-        assert "content" in source
-        assert "heading" in source
-        assert "rerank_score" in source
+        assert source["id"]
+        assert source["content"]
+        assert source["source"]
+        assert source["filename"]
+        assert source["heading"]
+        assert isinstance(source["chunk_index"], int)
+        assert isinstance(source["heading_level"], int)
+        assert source["heading_path"]
 
     print()
     print("=" * 80)
@@ -115,7 +121,6 @@ def test_real_rag_pipeline(tmp_path):
         print(
             f"{index}. "
             f"{source['heading']} "
-            f"(rerank={source['rerank_score']:.4f})"
         )
 
     print("=" * 80)

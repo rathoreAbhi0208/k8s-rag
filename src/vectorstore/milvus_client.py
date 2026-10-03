@@ -85,6 +85,17 @@ class LocalMilvusClient:
             dim=dimension,
         )
 
+        schema.add_field(
+            field_name="heading_level",
+            datatype=DataType.INT64,
+        )
+
+        schema.add_field(
+            field_name="heading_path",
+            datatype=DataType.VARCHAR,
+            max_length=2000,
+        )
+
         index_params = self.client.prepare_index_params()
 
         index_params.add_index(
