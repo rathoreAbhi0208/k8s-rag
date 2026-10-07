@@ -8,10 +8,10 @@ from src.ingestion.embedder import OllamaEmbedder
 from src.ingestion.loaders.markdown_loader import MarkdownLoader
 from src.ingestion.pipeline import IngestionPipeline
 from src.rag.pipeline import RAGPipeline
-from src.retrieval.reranker import CrossEncoderReranker
 from src.retrieval.retriever import Retriever
 from src.retrieval.semantic_search import SemanticSearcher
 from src.vectorstore.repository import MilvusRepository
+from src.retrieval.reranker import MetadataReranker
 
 
 def test_real_rag_pipeline(tmp_path):
@@ -49,16 +49,15 @@ def test_real_rag_pipeline(tmp_path):
         embedder=embedder,
     )
 
-    reranker = CrossEncoderReranker(
-        model_name="cross-encoder/ms-marco-MiniLM-L6-v2",
-    )
+    reranker = MetadataReranker()
 
     retriever = Retriever(
         semantic_searcher=semantic_searcher,
-        reranker=None,
-        candidate_k=10,
+        reranker=reranker,
+        candidate_k=20,
         top_k=3,
-        use_reranker=False,
+        use_reranker=True,
+        use_hierarchy=True,
     )
 
     ollama_client = OllamaClient(

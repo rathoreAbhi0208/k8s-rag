@@ -15,6 +15,7 @@ def make_result(result_id, heading, score):
         "chunk_index": result_id,
         "distance": score,
         "rerank_score": score,
+        "hierarchy_expanded": False,
     }
 
 

@@ -49,7 +49,8 @@ class IngestionPipeline:
         # Generate embeddings
         texts = [
             (
-                f"Document: {chunk.metadata.get('title', '')}\n"
+                f"Source: {chunk.metadata.get('source', '')}\n"
+                f"Document: {chunk.metadata.get('filename', '')}\n"
                 f"Section: {chunk.metadata.get('heading_path', '')}\n\n"
                 f"{chunk.content}"
             )

@@ -85,12 +85,14 @@ def test_ingest_file():
     embedder.embed_batch.assert_called_once_with(
         [
             (
-                "Document: Kubernetes Components\n"
+                "Source: test.md\n"
+                "Document: test.md\n"
                 "Section: Core Components > Control Plane\n\n"
                 "Control plane"
             ),
             (
-                "Document: Kubernetes Components\n"
+                "Source: test.md\n"
+                "Document: test.md\n"
                 "Section: Core Components > Node Components\n\n"
                 "Worker nodes"
             ),

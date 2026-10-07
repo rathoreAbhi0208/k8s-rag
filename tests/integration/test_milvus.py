@@ -1,6 +1,7 @@
 import uuid
 
 from src.vectorstore.milvus_client import LocalMilvusClient
+from src.vectorstore.repository import MilvusRepository
 
 
 DIMENSION = 3
@@ -152,3 +153,46 @@ def test_vector_search():
 
     finally:
         milvus.drop_collection(collection_name)
+
+def test_get_chunks_by_heading_path(tmp_path):
+    repository = MilvusRepository(
+        collection_name="heading_path_test",
+        dimension=768,
+        db_path=str(tmp_path / "milvus.db"),
+    )
+
+    chunks = [
+        {
+            "id": 1,
+            "content": "Core components",
+            "source": "test.md",
+            "filename": "test.md",
+            "heading": "Core Components",
+            "chunk_index": 1,
+            "embedding": [0.1] * 768,
+            "heading_level": 1,
+            "heading_path": "Core Components",
+        },
+        {
+            "id": 2,
+            "content": "Control plane",
+            "source": "test.md",
+            "filename": "test.md",
+            "heading": "Control Plane Components",
+            "chunk_index": 2,
+            "embedding": [0.2] * 768,
+            "heading_level": 2,
+            "heading_path": "Core Components > Control Plane Components",
+        },
+    ]
+
+    repository.client.insert(
+        collection_name=repository.collection_name,
+        data=chunks,
+    )
+
+    results = repository.get_chunks_by_heading_path(
+        "Core Components"
+    )
+
+    assert len(results) == 2

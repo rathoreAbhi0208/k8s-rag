@@ -4,10 +4,10 @@ from src.ingestion.chunker import MarkdownChunker
 from src.ingestion.embedder import OllamaEmbedder
 from src.ingestion.loaders.markdown_loader import MarkdownLoader
 from src.ingestion.pipeline import IngestionPipeline
-from src.retrieval.reranker import CrossEncoderReranker
 from src.retrieval.retriever import Retriever
 from src.retrieval.semantic_search import SemanticSearcher
 from src.vectorstore.repository import MilvusRepository
+from src.retrieval.reranker import MetadataReranker
 
 
 def test_real_retriever_integration(tmp_path):
@@ -44,15 +44,15 @@ def test_real_retriever_integration(tmp_path):
         embedder=embedder,
     )
 
-    reranker = CrossEncoderReranker(
-        model_name="cross-encoder/ms-marco-MiniLM-L6-v2",
-    )
+    reranker = MetadataReranker()
 
     retriever = Retriever(
         semantic_searcher=semantic_searcher,
         reranker=reranker,
-        candidate_k=10,
+        candidate_k=20,
         top_k=3,
+        use_reranker=True,
+        use_hierarchy=True,
     )
 
     query = "What are the components of the Kubernetes control plane?"

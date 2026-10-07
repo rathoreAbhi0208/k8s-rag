@@ -1,16 +1,24 @@
+import re
 from typing import Any
 
-from sentence_transformers import CrossEncoder
 
-
-class CrossEncoderReranker:
-    """Rerank retrieved documents using a cross-encoder model."""
+class MetadataReranker:
+    """Rerank semantic search results using query/heading/content signals."""
 
     def __init__(
         self,
-        model_name: str = "cross-encoder/ms-marco-MiniLM-L6-v2",
+        semantic_weight: float = 0.5,
+        heading_weight: float = 0.3,
+        path_weight: float = 0.2,
     ):
-        self.model = CrossEncoder(model_name)
+        total = semantic_weight + heading_weight + path_weight
+
+        if total <= 0:
+            raise ValueError("Reranker weights must sum to a positive value")
+
+        self.semantic_weight = semantic_weight
+        self.heading_weight = heading_weight
+        self.path_weight = path_weight
 
     def rerank(
         self,
@@ -18,8 +26,6 @@ class CrossEncoderReranker:
         results: list[dict[str, Any]],
         top_k: int = 3,
     ) -> list[dict[str, Any]]:
-        """Rerank search results and return the top results."""
-
         if not query.strip():
             raise ValueError("Query cannot be empty")
 
@@ -29,83 +35,77 @@ class CrossEncoderReranker:
         if not results:
             return []
 
-        top_k = min(top_k, len(results))
+        query_terms = self._tokenize(query)
 
-        # ---------------------------------------------------------
-        # Prepare query/document pairs
-        # ---------------------------------------------------------
+        reranked = []
 
-        pairs = [
-            (
-                query,
-                result.get("content", ""),
+        for result in results:
+            semantic_score = float(result.get("distance", 0.0))
+
+            heading = result.get("heading", "")
+            heading_path = result.get("heading_path", "")
+            content = result.get("content", "")
+
+            heading_score = self._term_overlap(
+                query_terms,
+                heading,
             )
-            for result in results
-        ]
 
-        # ---------------------------------------------------------
-        # Generate reranker scores
-        # ---------------------------------------------------------
+            path_score = self._term_overlap(
+                query_terms,
+                heading_path,
+            )
 
-        scores = self.model.predict(pairs)
+            content_score = self._term_overlap(
+                query_terms,
+                content,
+            )
 
-        # ---------------------------------------------------------
-        # Attach scores
-        # ---------------------------------------------------------
+            final_score = (
+                self.semantic_weight * semantic_score
+                + self.heading_weight * heading_score
+                + self.path_weight * path_score
+            )
+            
+            if result.get("hierarchy_expanded"):
+                final_score += 0.15
 
-        reranked_results = []
-
-        for result, score in zip(results, scores):
             reranked_result = result.copy()
-            reranked_result["rerank_score"] = float(score)
-            reranked_results.append(reranked_result)
 
-        # ---------------------------------------------------------
-        # Sort by reranker score
-        # ---------------------------------------------------------
+            reranked_result["semantic_score"] = semantic_score
+            reranked_result["heading_score"] = heading_score
+            reranked_result["path_score"] = path_score
+            reranked_result["content_score"] = content_score
+            reranked_result["rerank_score"] = final_score
 
-        reranked_results.sort(
+            reranked.append(reranked_result)
+
+        reranked.sort(
             key=lambda result: result["rerank_score"],
             reverse=True,
         )
 
-        # ---------------------------------------------------------
-        # Debug output
-        # ---------------------------------------------------------
+        return reranked[:top_k]
 
-        # print("\n" + "=" * 80)
-        # print("RERANKER RESULTS")
-        # print("=" * 80)
+    @staticmethod
+    def _tokenize(text: str) -> set[str]:
+        return {
+            token
+            for token in re.findall(r"\b[a-zA-Z0-9-]+\b", text.lower())
+            if len(token) > 2
+        }
 
-        # print(f"Query: {query}")
-        # print(f"Candidates: {len(results)}")
-        # print(f"Returning: {top_k}")
+    @staticmethod
+    def _term_overlap(
+        query_terms: set[str],
+        text: str,
+    ) -> float:
+        if not query_terms:
+            return 0.0
 
-        # for index, result in enumerate(
-        #     reranked_results,
-        #     start=1,
-        # ):
-        #     print(
-        #         f"\n{index}. "
-        #         f"score={result['rerank_score']:.4f}"
-        #     )
-        #     print(
-        #         f"   Heading:      "
-        #         f"{result.get('heading', '')}"
-        #     )
-        #     print(
-        #         f"   Heading Path: "
-        #         f"{result.get('heading_path', '')}"
-        #     )
-        #     print(
-        #         f"   Chunk Index:  "
-        #         f"{result.get('chunk_index', '')}"
-        #     )
-        #     print(
-        #         f"   Semantic:     "
-        #         f"{result.get('distance', '')}"
-        #     )
+        text_terms = MetadataReranker._tokenize(text)
 
-        # print("=" * 80)
+        if not text_terms:
+            return 0.0
 
-        return reranked_results[:top_k]
+        return len(query_terms & text_terms) / len(query_terms)

@@ -4,10 +4,9 @@ from src.ingestion.chunker import MarkdownChunker
 from src.ingestion.embedder import OllamaEmbedder
 from src.ingestion.loaders.markdown_loader import MarkdownLoader
 from src.ingestion.pipeline import IngestionPipeline
-from src.retrieval.reranker import CrossEncoderReranker
 from src.retrieval.semantic_search import SemanticSearcher
 from src.vectorstore.repository import MilvusRepository
-
+from src.retrieval.reranker import MetadataReranker
 
 def test_real_reranker_integration(tmp_path):
     document_path = Path(
@@ -73,9 +72,7 @@ def test_real_reranker_integration(tmp_path):
         print("-" * 80)
         print(result["content"][:500])
 
-    reranker = CrossEncoderReranker(
-        model_name="cross-encoder/ms-marco-MiniLM-L6-v2",
-    )
+    reranker = MetadataReranker()
 
     reranked_results = reranker.rerank(
         query=query,
